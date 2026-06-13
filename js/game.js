@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { Planet } from './planet.js?v=6';
-import { Fleet } from './fleet.js?v=6';
-import { AIController } from './ai.js?v=6';
-import { PLANET_TYPES } from './textures.js?v=6';
+import { Planet } from './planet.js?v=7';
+import { Fleet } from './fleet.js?v=7';
+import { AIController } from './ai.js?v=7';
+import { PLANET_TYPES } from './textures.js?v=7';
 import {
-  NEUTRAL, PLAYER, DIFFICULTY, techLevel,
+  NEUTRAL, PLAYER, DIFFICULTY, techLevel, ownerColor,
   CAPITAL_TECH_LEVEL, CAPITAL_COST, WARP_MULTIPLIER,
-} from './constants.js?v=6';
+} from './constants.js?v=7';
 
 const INTERCEPT_DIST = 6.5;
 
@@ -83,6 +83,7 @@ export class Game {
   }
 
   _teardown() {
+    this._hideLink();
     for (const f of this.fleets) { this.scene.scene.remove(f.points); f.dispose(); }
     for (const p of this.planets) { this.scene.scene.remove(p.group); }
     this.fleets = [];
@@ -209,17 +210,32 @@ export class Game {
     }
 
     // A source is selected and a different world tapped -> choose target.
-    this.pendingTarget = planet;
+    this._setTarget(planet);
     this.ui.showSendPanel(this.selected.shipCount);
   }
 
   select(planet) {
-    if (this.selected) this.selected.setSelected(false);
+    this._clearTarget();
+    if (this.selected) this.selected.setHighlight(null);
     this.selected = planet;
-    this.pendingTarget = null;
-    planet.setSelected(true);
+    planet.setHighlight('select');
     this.scene.focusOn(planet.position);
     this.showPlanetPanel();
+  }
+
+  _setTarget(planet) {
+    this._clearTarget();
+    this.pendingTarget = planet;
+    planet.setHighlight('target');
+    this._showLink(this.selected, planet);
+  }
+
+  _clearTarget() {
+    if (this.pendingTarget && this.pendingTarget !== this.selected) {
+      this.pendingTarget.setHighlight(null);
+    }
+    this.pendingTarget = null;
+    this._hideLink();
   }
 
   showPlanetPanel() {
@@ -230,14 +246,14 @@ export class Game {
   }
 
   deselect() {
-    if (this.selected) this.selected.setSelected(false);
+    this._clearTarget();
+    if (this.selected) this.selected.setHighlight(null);
     this.selected = null;
-    this.pendingTarget = null;
     this.ui.hidePanels();
   }
 
   cancelSend() {
-    this.pendingTarget = null;
+    this._clearTarget();
     this.showPlanetPanel();
   }
 
@@ -245,10 +261,7 @@ export class Game {
     if (this.selected && this.pendingTarget) {
       this.launchFleet(this.selected, this.pendingTarget, amount);
     }
-    this.pendingTarget = null;
-    // Stay on source so the player can keep dispatching.
-    if (this.selected && this.selected.owner === PLAYER) this.showPlanetPanel();
-    else this.deselect();
+    this.deselect(); // deselect after sending
   }
 
   buildCapitalSelected() {
@@ -256,6 +269,58 @@ export class Game {
       this.buildCapitalAt(this.selected);
       this.showPlanetPanel();
     }
+  }
+
+  // ---------------- selection link ----------------
+  // A gently arced "energy beam" from source to target: gradient from the
+  // player's colour to the target's colour, with pulses flowing toward it.
+  _showLink(source, target) {
+    this._hideLink();
+    if (!source || !target) return;
+    const a = source.position, b = target.position;
+    const mid = a.clone().lerp(b, 0.5);
+    mid.y += a.distanceTo(b) * 0.18; // lift for a graceful arc
+    const curve = new THREE.QuadraticBezierCurve3(a.clone(), mid, b.clone());
+    const geo = new THREE.TubeGeometry(curve, 48, 0.55, 8, false);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        colorA: { value: ownerColor(PLAYER) },
+        colorB: { value: ownerColor(target.owner) },
+        time: { value: 0 },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: `
+        uniform vec3 colorA; uniform vec3 colorB; uniform float time;
+        varying vec2 vUv;
+        void main() {
+          float t = vUv.x;
+          vec3 col = mix(colorA, colorB, t);
+          // Pulses streaming from source toward target.
+          float flow = fract(t * 4.0 - time * 1.1);
+          float pulse = smoothstep(0.0, 0.12, flow) * (1.0 - smoothstep(0.12, 0.6, flow));
+          float glow = 0.4 + 1.3 * pulse;
+          gl_FragColor = vec4(col * glow, 0.85);
+        }`,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this._link = new THREE.Mesh(geo, mat);
+    this._link.frustumCulled = false;
+    this.scene.scene.add(this._link);
+  }
+
+  _hideLink() {
+    if (!this._link) return;
+    this.scene.scene.remove(this._link);
+    this._link.geometry.dispose();
+    this._link.material.dispose();
+    this._link = null;
   }
 
   // ---------------- actions ----------------
@@ -316,6 +381,8 @@ export class Game {
     this._updateFog();
     this._updateStats();
     this._checkEnd();
+
+    if (this._link) this._link.material.uniforms.time.value += dt;
 
     // Deselect if we lost the selected world.
     if (this.selected && this.selected.owner !== PLAYER) this.deselect();

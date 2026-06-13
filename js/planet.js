@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { makePlanetTexture, makeCloudTexture, makeRingTexture, makeMarkerTexture, makeReticleTexture } from './textures.js?v=6';
-import { ownerColor, NEUTRAL } from './constants.js?v=6';
+import { makePlanetTexture, makeCloudTexture, makeRingTexture, makeMarkerTexture, makeReticleTexture } from './textures.js?v=7';
+import { ownerColor, NEUTRAL } from './constants.js?v=7';
 
 // Atmosphere fresnel glow shader (rim-lit halo around the planet).
 function atmosphereMaterial(color) {
@@ -111,9 +111,11 @@ export class Planet {
     this.ring.scale.setScalar(this.radius * 3.4);
     this.group.add(this.ring);
 
-    // Selection: a pulsing halo ring + a spinning targeting reticle. Both
-    // bright cyan and clearly larger than the planet so the pick is obvious.
-    this._selected = false;
+    // Highlight: a pulsing halo ring + a spinning targeting reticle, clearly
+    // larger than the planet. Colour/spin direction depend on the mode
+    // ('select' = cyan, clockwise; 'target' = amber, counter-clockwise).
+    this._hlMode = null;
+    this._spinDir = 1;
     this.selRing = new THREE.Sprite(new THREE.SpriteMaterial({
       map: ringTex, color: 0x8ffcff,
       transparent: true, blending: THREE.AdditiveBlending,
@@ -153,12 +155,18 @@ export class Planet {
     this.marker.material.opacity = 0.95;
   }
 
-  setSelected(on) {
-    this._selected = on;
-    if (!on) {
+  // mode: 'select' | 'target' | null
+  setHighlight(mode) {
+    this._hlMode = mode;
+    if (!mode) {
       this.selRing.material.opacity = 0;
       this.selReticle.material.opacity = 0;
+      return;
     }
+    const col = mode === 'select' ? 0x8ffcff : 0xffce5c;
+    this.selRing.material.color.setHex(col);
+    this.selReticle.material.color.setHex(col);
+    this._spinDir = mode === 'select' ? 1 : -1;
   }
 
   update(dt, gameSpeed) {
@@ -176,14 +184,14 @@ export class Planet {
       this.marker.position.y = this.radius * (1.5 + Math.sin(performance.now() * 0.003) * 0.08);
     }
 
-    // Animated selection: breathing halo + spinning, pulsing reticle.
-    if (this._selected) {
+    // Animated highlight: breathing halo + spinning, pulsing reticle.
+    if (this._hlMode) {
       const t = performance.now() * 0.001;
       const pulse = 0.5 + 0.5 * Math.sin(t * 4.5); // 0..1
       this.selRing.material.opacity = 0.55 + 0.45 * pulse;
       this.selRing.scale.setScalar(this.radius * (3.9 + 0.7 * pulse));
       this.selReticle.material.opacity = 0.9;
-      this.selReticle.material.rotation += dt * 1.3;
+      this.selReticle.material.rotation += dt * 1.3 * this._spinDir;
       this.selReticle.scale.setScalar(this.radius * (4.7 + 0.4 * pulse));
     }
   }
