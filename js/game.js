@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { Planet } from './planet.js?v=10';
-import { Fleet } from './fleet.js?v=10';
-import { AIController } from './ai.js?v=10';
-import { PLANET_TYPES } from './textures.js?v=10';
+import { Planet } from './planet.js?v=11';
+import { Fleet, BASE_SPEED } from './fleet.js?v=11';
+import { AIController } from './ai.js?v=11';
+import { PLANET_TYPES } from './textures.js?v=11';
 import {
   NEUTRAL, PLAYER, DIFFICULTY, techLevel, ownerColor, OWNER_NAMES,
   CAPITAL_TECH_LEVEL, CAPITAL_COST, WARP_MULTIPLIER,
-} from './constants.js?v=10';
+} from './constants.js?v=11';
 
 const INTERCEPT_DIST = 6.5;
 
@@ -70,6 +70,8 @@ export class Game {
     this.spectate = !!opts.spectate;
     this.fogEnabled = !this.spectate;
     this.paused = false;
+    // Advanced tactics are always on when spectating; optional for humans.
+    const advanced = this.spectate ? true : !!opts.advanced;
     this.ui.showPauseButton(true);
 
     const aiCount = clamp(Math.round(opts.ai ?? cfg.ai), this.spectate ? 2 : 1, this.spectate ? 4 : 3);
@@ -86,7 +88,7 @@ export class Game {
 
     // AI controllers for every non-human empire.
     const aiOwners = this.spectate ? homeOwners : homeOwners.filter(o => o !== PLAYER);
-    this.ais = aiOwners.map(o => new AIController(this, o, cfg));
+    this.ais = aiOwners.map(o => new AIController(this, o, cfg, advanced));
 
     this.ui.initLabels(this.planets);
 
@@ -391,6 +393,11 @@ export class Game {
     this.scene.scene.add(fleet.points);
     this.fleets.push(fleet);
     return fleet;
+  }
+
+  // World units per second a fleet travels (used by the AI to time arrivals).
+  fleetSpeed(warp) {
+    return BASE_SPEED * (warp ? WARP_MULTIPLIER : 1);
   }
 
   buildCapitalAt(planet) {

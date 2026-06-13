@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeStarfieldTexture, makeDotTexture } from './textures.js?v=10';
+import { makeStarfieldTexture, makeDotTexture } from './textures.js?v=11';
 
 // Manages renderer, scene, camera rig, lighting, starfield and touch controls.
 export class SceneManager {

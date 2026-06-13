@@ -1,9 +1,11 @@
 import * as THREE from 'three';
-import { makeDotTexture } from './textures.js?v=10';
-import { ownerColor } from './constants.js?v=10';
+import { makeDotTexture } from './textures.js?v=11';
+import { ownerColor } from './constants.js?v=11';
 
 const BASE_SPEED = 16; // world units / sec
 const MAX_DOTS = 28;
+
+export { BASE_SPEED };
 
 export class Fleet {
   constructor(opts) {

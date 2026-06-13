@@ -1,4 +1,4 @@
-import { OWNER_COLORS, OWNER_NAMES, NEUTRAL, PLAYER } from './constants.js?v=10';
+import { OWNER_COLORS, OWNER_NAMES, NEUTRAL, PLAYER } from './constants.js?v=11';
 
 const hex = (id) => '#' + (OWNER_COLORS[id] ?? 0xffffff).toString(16).padStart(6, '0');
 
@@ -65,6 +65,7 @@ export class UI {
     this.aiRange = document.getElementById('ai-range');
     this.aiVal = document.getElementById('ai-val');
     this.spectateChk = document.getElementById('spectate-chk');
+    this.advancedChk = document.getElementById('advanced-chk');
 
     this.planetsRange.addEventListener('input', () => {
       this.planetsVal.textContent = this.planetsRange.value;
@@ -78,6 +79,7 @@ export class UI {
         planets: +this.planetsRange.value,
         ai: +this.aiRange.value,
         spectate: this.spectateChk.checked,
+        advanced: this.advancedChk.checked,
       });
     });
 
