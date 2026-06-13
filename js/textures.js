@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createNoise3D, fbm } from './noise.js';
+import { createNoise3D, fbm } from './noise.js?v=6';
 
 // Planet archetypes with colour ramps (height -> rgb). Heights in [0,1].
 export const PLANET_TYPES = ['ocean', 'desert', 'ice', 'lava', 'gas', 'barren'];
@@ -258,6 +258,36 @@ export function makeMarkerTexture() {
   }
   const tex = new THREE.CanvasTexture(c);
   texCache.set('marker', tex);
+  return tex;
+}
+
+// Targeting reticle: four corner brackets. White/tintable, spins when applied.
+export function makeReticleTexture() {
+  if (texCache.has('reticle')) return texCache.get('reticle');
+  const s = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = s;
+  const ctx = c.getContext('2d');
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 9;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const m = 16, L = 30; // margin from edge, bracket arm length
+  const corners = [
+    [[m, m + L], [m, m], [m + L, m]],                         // top-left
+    [[s - m - L, m], [s - m, m], [s - m, m + L]],             // top-right
+    [[m, s - m - L], [m, s - m], [m + L, s - m]],             // bottom-left
+    [[s - m, s - m - L], [s - m, s - m], [s - m - L, s - m]], // bottom-right
+  ];
+  for (const pts of corners) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    ctx.lineTo(pts[1][0], pts[1][1]);
+    ctx.lineTo(pts[2][0], pts[2][1]);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  texCache.set('reticle', tex);
   return tex;
 }
 

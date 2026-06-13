@@ -1,6 +1,6 @@
-import { SceneManager } from './scene.js?v=5';
-import { UI } from './ui.js';
-import { Game } from './game.js?v=5';
+import { SceneManager } from './scene.js?v=6';
+import { UI } from './ui.js?v=6';
+import { Game } from './game.js?v=6';
 
 function fatal(e) {
   const msg = (e && (e.stack || e.message)) || String(e);

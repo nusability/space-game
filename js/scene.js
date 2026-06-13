@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeStarfieldTexture } from './textures.js';
+import { makeStarfieldTexture } from './textures.js?v=6';
 
 // Manages renderer, scene, camera rig, lighting, starfield and touch controls.
 export class SceneManager {

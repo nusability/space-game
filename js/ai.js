@@ -1,4 +1,4 @@
-import { NEUTRAL } from './constants.js?v=5';
+import { NEUTRAL } from './constants.js?v=6';
 
 // One controller per AI empire. Periodically launches fleets and builds
 // capital ships. Difficulty tunes cadence, aggression, mistake rate and how

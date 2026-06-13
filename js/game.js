@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { Planet } from './planet.js';
-import { Fleet } from './fleet.js';
-import { AIController } from './ai.js?v=5';
-import { PLANET_TYPES } from './textures.js';
+import { Planet } from './planet.js?v=6';
+import { Fleet } from './fleet.js?v=6';
+import { AIController } from './ai.js?v=6';
+import { PLANET_TYPES } from './textures.js?v=6';
 import {
   NEUTRAL, PLAYER, DIFFICULTY, techLevel,
   CAPITAL_TECH_LEVEL, CAPITAL_COST, WARP_MULTIPLIER,
-} from './constants.js?v=5';
+} from './constants.js?v=6';
 
 const INTERCEPT_DIST = 6.5;
 
