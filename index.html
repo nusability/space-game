@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#05060f" />
+  <title>Stellar Conquest</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="topbar">
+      <div class="stat" id="stat-planets"><span class="label">Worlds</span><span class="val">0</span></div>
+      <div class="stat" id="stat-ships"><span class="label">Ships</span><span class="val">0</span></div>
+      <div class="stat" id="stat-tech"><span class="label">Tech</span><span class="val">1</span></div>
+    </div>
+    <div id="messages"></div>
+  </div>
+
+  <!-- Send amount selector -->
+  <div id="send-panel" class="panel hidden">
+    <div class="send-title">Send fleet</div>
+    <div class="send-readout"><span id="send-count">0</span> ships</div>
+    <input id="send-slider" type="range" min="1" max="100" value="50" />
+    <div class="send-quick">
+      <button data-pct="25">25%</button>
+      <button data-pct="50">50%</button>
+      <button data-pct="75">75%</button>
+      <button data-pct="100">All</button>
+    </div>
+    <div class="send-actions">
+      <button id="send-cancel" class="ghost">Cancel</button>
+      <button id="send-go" class="primary">Launch</button>
+    </div>
+  </div>
+
+  <!-- Planet action panel (build capital ship) -->
+  <div id="planet-panel" class="panel hidden">
+    <div class="pp-name">Planet</div>
+    <button id="build-capital" class="primary">Build Capital Ship (<span id="capital-cost">50</span>)</button>
+    <div class="pp-hint">Warp hub: fleets launched here travel far faster.</div>
+    <button id="planet-close" class="ghost">Close</button>
+  </div>
+
+  <!-- Overlay screens -->
+  <div id="overlay" class="overlay">
+    <div class="overlay-card">
+      <h1>STELLAR CONQUEST</h1>
+      <p class="tag">Tap a world you own, then tap a target to send ships. Conquer the galaxy.</p>
+      <ul class="how">
+        <li><b>Drag</b> to orbit · <b>Pinch</b> to zoom</li>
+        <li>Worlds grow fleets over time</li>
+        <li>Fleets clash when they cross paths</li>
+        <li>Reach Tech 3 to build Capital Ships &amp; <b>warp</b></li>
+      </ul>
+      <div class="diff-row">
+        <button class="primary diff" data-diff="easy">Skirmish</button>
+        <button class="primary diff" data-diff="normal">Campaign</button>
+        <button class="primary diff" data-diff="hard">Onslaught</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="endscreen" class="overlay hidden">
+    <div class="overlay-card">
+      <h1 id="end-title">Victory</h1>
+      <p id="end-text" class="tag"></p>
+      <button id="restart" class="primary">Play Again</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
