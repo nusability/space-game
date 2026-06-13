@@ -77,6 +77,8 @@ export class SceneManager {
     this._moved = 0;
     this._downTime = 0;
     this._lastPinch = 0;
+    this._lastMid = null;
+    this.panLimit = Infinity; // max distance the focus target may roam
     this.onTap = null; // callback(clientX, clientY)
 
     el.addEventListener('pointerdown', (e) => {
@@ -87,6 +89,7 @@ export class SceneManager {
       this._downTime = performance.now();
       if (this.pointers.size === 2) {
         this._lastPinch = this._pinchDist();
+        this._lastMid = this._pinchMid();
       }
     });
 
@@ -98,13 +101,18 @@ export class SceneManager {
       this._moved += Math.abs(dx) + Math.abs(dy);
 
       if (this.pointers.size >= 2) {
-        // Pinch zoom.
+        // Two fingers: pinch to zoom, drag to pan.
         const d = this._pinchDist();
+        const mid = this._pinchMid();
         if (this._lastPinch > 0) {
           const factor = this._lastPinch / d;
           this.radius = THREE.MathUtils.clamp(this.radius * factor, this.minRadius, this.maxRadius);
         }
+        if (this._lastMid) {
+          this._pan(mid.x - this._lastMid.x, mid.y - this._lastMid.y);
+        }
         this._lastPinch = d;
+        this._lastMid = mid;
         this._updateCamera();
       } else if (this.pointers.size === 1) {
         // Orbit.
@@ -118,12 +126,15 @@ export class SceneManager {
       const wasTap = this.pointers.size === 1 && this._moved < 10 &&
         (performance.now() - this._downTime) < 350;
       this.pointers.delete(e.pointerId);
-      if (this.pointers.size < 2) this._lastPinch = 0;
+      if (this.pointers.size < 2) { this._lastPinch = 0; this._lastMid = null; }
       if (this.pointers.size === 0) this._dragging = false;
       if (wasTap && this.onTap) this.onTap(e.clientX, e.clientY);
     };
     el.addEventListener('pointerup', end);
-    el.addEventListener('pointercancel', (e) => { this.pointers.delete(e.pointerId); });
+    el.addEventListener('pointercancel', (e) => {
+      this.pointers.delete(e.pointerId);
+      if (this.pointers.size < 2) { this._lastPinch = 0; this._lastMid = null; }
+    });
 
     // Desktop wheel zoom.
     el.addEventListener('wheel', (e) => {
@@ -137,6 +148,35 @@ export class SceneManager {
     const pts = [...this.pointers.values()];
     if (pts.length < 2) return 0;
     return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  }
+
+  _pinchMid() {
+    const pts = [...this.pointers.values()];
+    if (pts.length < 2) return null;
+    return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  }
+
+  // Pan the focus target in the camera plane by a screen-pixel delta.
+  _pan(dxPx, dyPx) {
+    const scale = this.radius * 0.0016;
+    const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
+    this.target.addScaledVector(right, -dxPx * scale);
+    this.target.addScaledVector(up, dyPx * scale);
+    if (isFinite(this.panLimit) && this.target.length() > this.panLimit) {
+      this.target.setLength(this.panLimit);
+    }
+    this._focusTarget = null; // don't fight an in-progress focus animation
+  }
+
+  // Approximate on-screen radius (px) of a sphere at world `pos` of radius `r`.
+  projectedRadius(pos, r) {
+    const c = pos.clone().project(this.camera);
+    const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
+    const e = pos.clone().addScaledVector(right, r).project(this.camera);
+    const dx = (e.x - c.x) * 0.5 * window.innerWidth;
+    const dy = (e.y - c.y) * 0.5 * window.innerHeight;
+    return Math.hypot(dx, dy);
   }
 
   _updateCamera() {

@@ -38,7 +38,10 @@ export function techLevel(worldCount) {
 }
 
 export const DIFFICULTY = {
-  easy:   { ai: 1, aiAggression: 0.5, aiInterval: 3.2, prodMul: 1.0 },
-  normal: { ai: 2, aiAggression: 0.8, aiInterval: 2.4, prodMul: 1.0 },
-  hard:   { ai: 3, aiAggression: 1.1, aiInterval: 1.7, prodMul: 1.15 },
+  // interval: seconds between decision ticks; maxMoves: hard cap of real
+  // moves per 10s window; mistakeChance: probability of a suboptimal target;
+  // aiProd/playerProd: per-owner production multipliers (economy handicap).
+  easy:   { ai: 1, interval: 4.0, aggression: 0.45, maxMoves: 2, mistakeChance: 0.45, aiProd: 0.8,  playerProd: 1.35 },
+  normal: { ai: 2, interval: 3.0, aggression: 0.70, maxMoves: 3, mistakeChance: 0.22, aiProd: 1.0,  playerProd: 1.15 },
+  hard:   { ai: 3, interval: 2.2, aggression: 1.00, maxMoves: 3, mistakeChance: 0.06, aiProd: 1.05, playerProd: 1.0  },
 };

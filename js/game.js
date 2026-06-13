@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { Planet } from './planet.js';
 import { Fleet } from './fleet.js';
-import { AIController } from './ai.js?v=4';
+import { AIController } from './ai.js?v=5';
 import { PLANET_TYPES } from './textures.js';
 import {
   NEUTRAL, PLAYER, DIFFICULTY, techLevel,
   CAPITAL_TECH_LEVEL, CAPITAL_COST, WARP_MULTIPLIER,
-} from './constants.js';
+} from './constants.js?v=5';
 
 const INTERCEPT_DIST = 6.5;
 
@@ -72,7 +72,6 @@ export class Game {
       this.ais.push(new AIController(this, 2 + i, cfg));
     }
 
-    this.pickMeshes = this.planets.map(p => p.surface);
     this.ui.initLabels(this.planets);
 
     // Frame the player's home world.
@@ -97,6 +96,7 @@ export class Game {
     this.galaxyRadius = R;
     this.scene.setBounds(R * 2.4);
     this.scene.radius = R * 1.4;
+    this.scene.panLimit = R * 1.25; // keep two-finger panning near the galaxy
 
     const positions = [];
     const minDist = 24;
@@ -129,7 +129,7 @@ export class Game {
         seed: 1 + Math.floor(Math.random() * 99999),
         owner: NEUTRAL,
         ships: 4 + Math.floor(Math.random() * 14),
-        production: radius * 0.5 * this.cfg.prodMul,
+        production: radius * 0.5, // owner multipliers applied per-frame
       });
       this.scene.scene.add(planet.group);
       return planet;
@@ -141,9 +141,9 @@ export class Game {
       const owner = k === 0 ? PLAYER : (1 + k); // 1 player, 2,3,4 AI
       const p = this.planets[idx];
       p.setOwner(owner);
-      p.ships = 30;
+      p.ships = owner === PLAYER ? 40 : 30; // small head start for the player
       // Homeworlds are a touch more productive than the radius alone implies.
-      p.production = p.radius * 0.7 * this.cfg.prodMul;
+      p.production = p.radius * 0.7;
       p.discovered = true;
       p.visible = true;
     });
@@ -170,10 +170,27 @@ export class Game {
   }
 
   // ---------------- interaction ----------------
+  // Forgiving tap pick: choose the planet whose projected centre is nearest
+  // the tap, within a generous radius, so tiny far-away worlds are easy to hit.
+  pickPlanet(x, y) {
+    let best = null, bestD = Infinity;
+    for (const p of this.planets) {
+      const s = this.scene.worldToScreen(p.position);
+      if (s.behind) continue;
+      const d = Math.hypot(s.x - x, s.y - y);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    if (!best) return null;
+    const minDim = Math.min(window.innerWidth, window.innerHeight);
+    const projR = this.scene.projectedRadius(best.position, best.radius);
+    // Accept generously; only a tap far from every world counts as "empty".
+    const threshold = Math.max(projR * 1.4, minDim * 0.22);
+    return bestD <= threshold ? best : null;
+  }
+
   handleTap(x, y) {
     if (!this.started || this.over) return;
-    const hit = this.scene.pick(x, y, this.pickMeshes);
-    const planet = hit ? hit.object.userData.planet : null;
+    const planet = this.pickPlanet(x, y);
 
     if (!planet) { this.deselect(); return; }
 
@@ -275,12 +292,19 @@ export class Game {
     return techLevel(count);
   }
 
+  // Per-owner production multiplier (economy handicap / player advantage).
+  prodMulFor(owner) {
+    if (owner === PLAYER) return this.cfg.playerProd;
+    if (owner === NEUTRAL) return 1;
+    return this.cfg.aiProd;
+  }
+
   // ---------------- loop ----------------
   update(dt) {
     if (!this.started || this.over) return;
     const gs = this.gameSpeed;
 
-    for (const p of this.planets) p.update(dt, gs);
+    for (const p of this.planets) p.update(dt, gs * this.prodMulFor(p.owner));
     for (const f of this.fleets) f.update(dt, gs);
 
     this._resolveInterceptions();

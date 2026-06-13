@@ -1,17 +1,18 @@
-import { NEUTRAL } from './constants.js';
+import { NEUTRAL } from './constants.js?v=5';
 
 // One controller per AI empire. Periodically launches fleets and builds
-// capital ships. Difficulty tunes interval, aggression and risk tolerance,
-// but every empire is hard-capped to MAX_MOVES real moves per WINDOW seconds.
-const WINDOW = 10;     // seconds
-const MAX_MOVES = 3;   // launches/builds allowed within the window
+// capital ships. Difficulty tunes cadence, aggression, mistake rate and how
+// many real moves it may make per WINDOW seconds.
+const WINDOW = 10; // seconds
 
 export class AIController {
   constructor(game, ownerId, params) {
     this.game = game;
     this.owner = ownerId;
-    this.interval = params.aiInterval;
-    this.aggression = params.aiAggression;
+    this.interval = params.interval;
+    this.aggression = params.aggression;
+    this.maxMoves = params.maxMoves;
+    this.mistakeChance = params.mistakeChance;
     this.timer = Math.random() * this.interval;
     this.clock = 0;        // local game-time accumulator
     this.moveTimes = [];   // timestamps of recent real moves
@@ -25,7 +26,7 @@ export class AIController {
 
     // Rolling-window rate limit: drop moves older than WINDOW seconds.
     this.moveTimes = this.moveTimes.filter(t => this.clock - t < WINDOW);
-    if (this.moveTimes.length >= MAX_MOVES) return; // budget spent
+    if (this.moveTimes.length >= this.maxMoves) return; // budget spent
 
     // Only a move that actually happens counts against the budget.
     if (this.act()) this.moveTimes.push(this.clock);
@@ -53,6 +54,7 @@ export class AIController {
     if (source.shipCount < 12) return false;
 
     // Score candidate targets: prefer weak, nearby, hostile/neutral worlds.
+    const cands = [];
     let best = null, bestScore = -Infinity;
     for (const t of g.planets) {
       if (t === source) continue;
@@ -63,17 +65,24 @@ export class AIController {
       let score = (source.shipCount * this.aggression) / defense - dist * 0.05;
       if (t.owner === NEUTRAL) score += 4;
       if (t.hasCapital) score += 6; // grabbing a warp hub is valuable
+      cands.push(t);
       if (score > bestScore) { bestScore = score; best = t; }
     }
     if (!best) return false;
 
+    // Sometimes blunder: attack a random target instead of the optimal one.
+    let target = best;
+    if (cands.length > 1 && Math.random() < this.mistakeChance) {
+      target = cands[Math.floor(Math.random() * cands.length)];
+    }
+
     // Only commit if we can plausibly take it (or it's a cheap neutral).
-    const defenders = best.shipCount;
-    const sendFrac = Math.min(0.9, 0.45 + this.aggression * 0.3);
+    const defenders = target.shipCount;
+    const sendFrac = Math.min(0.9, 0.4 + this.aggression * 0.3);
     const send = Math.floor(source.shipCount * sendFrac);
     if (send < 8) return false;
-    if (send <= defenders && best.owner !== NEUTRAL && Math.random() > 0.3) return false;
+    if (send <= defenders && target.owner !== NEUTRAL && Math.random() > 0.3) return false;
 
-    return !!g.launchFleet(source, best, send);
+    return !!g.launchFleet(source, target, send);
   }
 }
