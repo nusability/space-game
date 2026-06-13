@@ -60,6 +60,7 @@ export class Game {
     this.cfg = cfg;
     this.over = false;
     this.started = true;
+    this.ui.hideOverlay();
 
     const aiCount = cfg.ai;
     const planetCount = 12 + aiCount * 3 + Math.floor(Math.random() * 3);
