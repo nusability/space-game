@@ -17,6 +17,34 @@
   </script>
 </head>
 <body>
+  <!-- Surfaces fatal errors on-screen (no devtools on mobile). -->
+  <script>
+  (function () {
+    function show(msg) {
+      var d = document.getElementById('fatal');
+      if (!d) {
+        d = document.createElement('div');
+        d.id = 'fatal';
+        d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:#3a0d0d;color:#ffd9d9;font:12px/1.5 ui-monospace,monospace;padding:10px 12px;white-space:pre-wrap;word-break:break-word;border-bottom:1px solid #a33;max-height:60vh;overflow:auto;';
+        document.body.appendChild(d);
+      }
+      d.textContent = '⚠ ' + msg;
+    }
+    window.__fatal = show;
+    window.addEventListener('error', function (e) {
+      show((e.message || 'Script error') + (e.filename ? ('\n' + e.filename) : '') + (e.lineno ? (':' + e.lineno) : ''));
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      var r = e.reason; show('Unhandled rejection:\n' + ((r && (r.stack || r.message)) || r));
+    });
+    setTimeout(function () {
+      if (!window.__booted && !document.getElementById('fatal')) {
+        show('App did not start within 7s. Your browser may not support ES module import maps (needs iOS 16.4+ / a current browser).');
+      }
+    }, 7000);
+  })();
+  </script>
+
   <canvas id="scene"></canvas>
 
   <!-- HUD -->
@@ -81,6 +109,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=3"></script>
 </body>
 </html>

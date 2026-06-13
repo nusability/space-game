@@ -1,23 +1,44 @@
 import { SceneManager } from './scene.js';
 import { UI } from './ui.js';
-import { Game } from './game.js';
+import { Game } from './game.js?v=3';
 
-const canvas = document.getElementById('scene');
-const scene = new SceneManager(canvas);
-const ui = new UI();
-const game = new Game(scene, ui);
+function fatal(e) {
+  const msg = (e && (e.stack || e.message)) || String(e);
+  if (window.__fatal) window.__fatal(msg);
+  console.error(e);
+}
+
+let scene, ui, game;
+try {
+  const canvas = document.getElementById('scene');
+  scene = new SceneManager(canvas);
+  ui = new UI();
+  game = new Game(scene, ui);
+  window.__booted = true; // tells the boot watchdog we're alive
+} catch (e) {
+  fatal(e);
+}
 
 let last = performance.now();
+let stopped = false;
 function loop(now) {
+  if (stopped) return;
   let dt = (now - last) / 1000;
   last = now;
   if (dt > 0.1) dt = 0.1; // clamp after tab switches
 
-  game.update(dt);
-  scene.update(dt);
-  if (game.started) ui.updateLabels(game.planets, scene);
-  scene.render();
-
+  try {
+    if (game) {
+      game.update(dt);
+      scene.update(dt);
+      if (game.started) ui.updateLabels(game.planets, scene);
+      scene.render();
+    }
+  } catch (e) {
+    stopped = true; // stop so we don't spam the same error every frame
+    fatal(e);
+    return;
+  }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
