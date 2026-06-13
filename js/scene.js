@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeStarfieldTexture } from './textures.js?v=9';
+import { makeStarfieldTexture, makeDotTexture } from './textures.js?v=10';
 
 // Manages renderer, scene, camera rig, lighting, starfield and touch controls.
 export class SceneManager {
@@ -51,8 +51,10 @@ export class SceneManager {
     rim.position.set(1, -0.2, -0.5).multiplyScalar(500);
     this.scene.add(rim);
 
-    // Visible star sprite far away in the sun direction.
+    // Visible star sprite far away in the sun direction. Needs a soft round
+    // texture — a map-less SpriteMaterial renders as an ugly solid square.
     const starMat = new THREE.SpriteMaterial({
+      map: makeDotTexture(),
       color: 0xfff0d0, transparent: true, opacity: 0.9,
       blending: THREE.AdditiveBlending, depthWrite: false,
     });

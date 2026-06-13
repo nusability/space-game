@@ -1,4 +1,4 @@
-import { OWNER_COLORS, OWNER_NAMES, NEUTRAL, PLAYER } from './constants.js?v=9';
+import { OWNER_COLORS, OWNER_NAMES, NEUTRAL, PLAYER } from './constants.js?v=10';
 
 const hex = (id) => '#' + (OWNER_COLORS[id] ?? 0xffffff).toString(16).padStart(6, '0');
 
