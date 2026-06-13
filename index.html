@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#05060f" />
   <title>Stellar Conquest</title>
-  <link rel="stylesheet" href="css/style.css?v=8" />
+  <link rel="stylesheet" href="css/style.css?v=9" />
   <script type="importmap">
   {
     "imports": {
@@ -56,6 +56,9 @@
     </div>
     <div id="messages"></div>
   </div>
+
+  <!-- Pause button (visible only during play) -->
+  <button id="pause-btn" class="hidden" aria-label="Pause">II</button>
 
   <!-- Send amount selector -->
   <div id="send-panel" class="panel hidden">
@@ -127,6 +130,17 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js?v=8"></script>
+  <div id="pause-menu" class="overlay hidden">
+    <div class="overlay-card">
+      <h1>Paused</h1>
+      <p class="tag">Take a breath, commander.</p>
+      <div class="send-actions">
+        <button id="pause-restart" class="ghost">New Game</button>
+        <button id="resume" class="primary">Resume</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js?v=9"></script>
 </body>
 </html>

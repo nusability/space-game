@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { Planet } from './planet.js?v=8';
-import { Fleet } from './fleet.js?v=8';
-import { AIController } from './ai.js?v=8';
-import { PLANET_TYPES } from './textures.js?v=8';
+import { Planet } from './planet.js?v=9';
+import { Fleet } from './fleet.js?v=9';
+import { AIController } from './ai.js?v=9';
+import { PLANET_TYPES } from './textures.js?v=9';
 import {
   NEUTRAL, PLAYER, DIFFICULTY, techLevel, ownerColor, OWNER_NAMES,
   CAPITAL_TECH_LEVEL, CAPITAL_COST, WARP_MULTIPLIER,
-} from './constants.js?v=8';
+} from './constants.js?v=9';
 
 const INTERCEPT_DIST = 6.5;
 
@@ -46,11 +46,14 @@ export class Game {
 
   _wireUI() {
     const ui = this.ui;
-    ui.onStart = (diff) => this.start(diff);
+    ui.onStart = (opts) => this.start(opts);
     ui.onSend = (amount) => this.confirmSend(amount);
     ui.onCancel = () => this.cancelSend();
     ui.onBuildCapital = () => this.buildCapitalSelected();
     ui.onClosePlanet = () => this.deselect();
+    ui.onPause = () => { this.paused = true; };
+    ui.onResume = () => { this.paused = false; };
+    ui.onRestart = () => { this.paused = true; this.deselect(); }; // setup overlay shown by UI
   }
 
   // ---------------- setup ----------------
@@ -66,6 +69,8 @@ export class Game {
 
     this.spectate = !!opts.spectate;
     this.fogEnabled = !this.spectate;
+    this.paused = false;
+    this.ui.showPauseButton(true);
 
     const aiCount = clamp(Math.round(opts.ai ?? cfg.ai), this.spectate ? 2 : 1, this.spectate ? 4 : 3);
 
@@ -109,7 +114,8 @@ export class Game {
   }
 
   _generateGalaxy(count, homeOwners) {
-    const R = 70 + count * 4.5;
+    // Grow the galaxy with the count so worlds stay well spaced.
+    const R = 80 + count * 5.6;
     this.galaxyRadius = R;
     this.scene.setBounds(R * 3.0); // allow zooming out a fair bit further
     this.scene.radius = R * 1.4;
@@ -119,11 +125,14 @@ export class Game {
     // synchronous generation responsive on mobile).
     const texSize = count > 28 ? 128 : count > 18 ? 160 : 224;
 
+    // Poisson-ish placement. Start with a generous separation and relax it if
+    // we struggle to fit them all, so we always end up with exactly `count`.
     const positions = [];
-    const minDist = 24;
-    let guard = 0;
-    while (positions.length < count && guard < count * 400) {
-      guard++;
+    let minDist = 40;
+    let attempts = 0;
+    const maxAttempts = count * 1200;
+    while (positions.length < count && attempts < maxAttempts) {
+      attempts++;
       // Sample within an oblate volume (flatter galaxy looks better).
       const u = Math.random(), v = Math.random();
       const r = R * Math.cbrt(Math.random());
@@ -135,6 +144,19 @@ export class Game {
         r * Math.sin(phi) * Math.sin(theta)
       );
       if (positions.every(q => q.distanceTo(p) >= minDist)) positions.push(p);
+      // If placement keeps failing, gradually loosen the spacing requirement.
+      else if (attempts % (count * 30) === 0) minDist *= 0.9;
+    }
+    // Guarantee the requested world count even in the worst case.
+    while (positions.length < count) {
+      const u = Math.random(), v = Math.random();
+      const r = R * Math.cbrt(Math.random());
+      const theta = u * Math.PI * 2, phi = Math.acos(2 * v - 1);
+      positions.push(new THREE.Vector3(
+        r * Math.sin(phi) * Math.cos(theta),
+        r * Math.cos(phi) * 0.45,
+        r * Math.sin(phi) * Math.sin(theta)
+      ));
     }
 
     // Build planets.
@@ -213,8 +235,14 @@ export class Game {
   }
 
   handleTap(x, y) {
-    if (!this.started || this.over) return;
+    if (!this.started || this.over || this.paused) return;
     const planet = this.pickPlanet(x, y);
+
+    // Spectating: you only watch — tapping just re-centres the camera.
+    if (this.spectate) {
+      if (planet) this.scene.focusOn(planet.position);
+      return;
+    }
 
     if (!planet) { this.deselect(); return; }
 
@@ -390,7 +418,7 @@ export class Game {
 
   // ---------------- loop ----------------
   update(dt) {
-    if (!this.started || this.over) return;
+    if (!this.started || this.over || this.paused) return;
     const gs = this.gameSpeed;
 
     for (const p of this.planets) p.update(dt, gs * this.prodMulFor(p.owner));

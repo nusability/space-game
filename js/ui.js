@@ -1,4 +1,4 @@
-import { OWNER_COLORS, OWNER_NAMES, NEUTRAL, PLAYER } from './constants.js?v=8';
+import { OWNER_COLORS, OWNER_NAMES, NEUTRAL, PLAYER } from './constants.js?v=9';
 
 const hex = (id) => '#' + (OWNER_COLORS[id] ?? 0xffffff).toString(16).padStart(6, '0');
 
@@ -85,6 +85,30 @@ export class UI {
       this.endscreen.classList.add('hidden');
       this.overlay.classList.remove('hidden');
     });
+
+    // Pause button + menu
+    this.pauseBtn = document.getElementById('pause-btn');
+    this.pauseMenu = document.getElementById('pause-menu');
+    this.pauseBtn.addEventListener('click', () => {
+      this.pauseMenu.classList.remove('hidden');
+      this.pauseBtn.classList.add('hidden');
+      this.onPause && this.onPause();
+    });
+    document.getElementById('resume').addEventListener('click', () => {
+      this.pauseMenu.classList.add('hidden');
+      this.pauseBtn.classList.remove('hidden');
+      this.onResume && this.onResume();
+    });
+    document.getElementById('pause-restart').addEventListener('click', () => {
+      this.pauseMenu.classList.add('hidden');
+      this.pauseBtn.classList.add('hidden');
+      this.overlay.classList.remove('hidden'); // back to setup
+      this.onRestart && this.onRestart();
+    });
+  }
+
+  showPauseButton(show) {
+    this.pauseBtn.classList.toggle('hidden', !show);
   }
 
   // Human mode allows 1-3 AI (4 owner slots); spectate allows 2-4.
@@ -199,6 +223,7 @@ export class UI {
 
   showEnd(win, text, title) {
     this.hidePanels();
+    this.showPauseButton(false);
     document.getElementById('end-title').textContent = title || (win ? 'Victory' : 'Defeat');
     document.getElementById('end-text').textContent = text;
     this.endscreen.classList.remove('hidden');

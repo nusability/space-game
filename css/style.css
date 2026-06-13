@@ -223,6 +223,23 @@ button { font-family: inherit; cursor: pointer; outline: none; }
 }
 .switch-row input { width: 22px; height: 22px; accent-color: #3fd6ff; }
 
+/* Pause button */
+#pause-btn {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  z-index: 30;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  color: #cfe0ff;
+  font-size: 16px; font-weight: 800; letter-spacing: 2px;
+  backdrop-filter: blur(8px);
+}
+#pause-btn.hidden { display: none; }
+#pause-btn:active { background: rgba(57,208,255,0.25); }
+
 .launch { width: 100%; padding: 16px; font-size: 17px; }
 .how-mini { font-size: 12px; opacity: 0.55; margin-top: 12px; }
 .how-mini b { color: var(--player); }
