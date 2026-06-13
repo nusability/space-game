@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { Planet } from './planet.js?v=7';
-import { Fleet } from './fleet.js?v=7';
-import { AIController } from './ai.js?v=7';
-import { PLANET_TYPES } from './textures.js?v=7';
+import { Planet } from './planet.js?v=8';
+import { Fleet } from './fleet.js?v=8';
+import { AIController } from './ai.js?v=8';
+import { PLANET_TYPES } from './textures.js?v=8';
 import {
-  NEUTRAL, PLAYER, DIFFICULTY, techLevel, ownerColor,
+  NEUTRAL, PLAYER, DIFFICULTY, techLevel, ownerColor, OWNER_NAMES,
   CAPITAL_TECH_LEVEL, CAPITAL_COST, WARP_MULTIPLIER,
-} from './constants.js?v=7';
+} from './constants.js?v=8';
 
 const INTERCEPT_DIST = 6.5;
 
@@ -54,32 +54,48 @@ export class Game {
   }
 
   // ---------------- setup ----------------
-  start(difficulty) {
+  // opts: { difficulty, planets, ai, spectate }
+  start(opts = {}) {
     this._teardown();
-    const cfg = DIFFICULTY[difficulty] || DIFFICULTY.normal;
+    const clamp = THREE.MathUtils.clamp;
+    const cfg = DIFFICULTY[opts.difficulty] || DIFFICULTY.normal;
     this.cfg = cfg;
     this.over = false;
     this.started = true;
     this.ui.hideOverlay();
 
-    const aiCount = cfg.ai;
-    const planetCount = 12 + aiCount * 3 + Math.floor(Math.random() * 3);
-    this._generateGalaxy(planetCount, aiCount);
+    this.spectate = !!opts.spectate;
+    this.fogEnabled = !this.spectate;
 
-    // AI controllers for owners 2..(1+aiCount)
-    this.ais = [];
-    for (let i = 0; i < aiCount; i++) {
-      this.ais.push(new AIController(this, 2 + i, cfg));
-    }
+    const aiCount = clamp(Math.round(opts.ai ?? cfg.ai), this.spectate ? 2 : 1, this.spectate ? 4 : 3);
+
+    // Which owner ids get a homeworld (and thus an empire).
+    const homeOwners = this.spectate
+      ? Array.from({ length: aiCount }, (_, i) => 1 + i)        // all AI
+      : [PLAYER, ...Array.from({ length: aiCount }, (_, i) => 2 + i)];
+
+    let planetCount = clamp(Math.round(opts.planets ?? (12 + aiCount * 3)), 6, 40);
+    planetCount = Math.max(planetCount, homeOwners.length + 2);
+
+    this._generateGalaxy(planetCount, homeOwners);
+
+    // AI controllers for every non-human empire.
+    const aiOwners = this.spectate ? homeOwners : homeOwners.filter(o => o !== PLAYER);
+    this.ais = aiOwners.map(o => new AIController(this, o, cfg));
 
     this.ui.initLabels(this.planets);
 
-    // Frame the player's home world.
-    const home = this.planets.find(p => p.owner === PLAYER);
-    this.scene.target.copy(home.position);
-    this.scene.focusOn(home.position, this.galaxyRadius * 1.05);
+    // Frame the action: player's home, or the whole galaxy when spectating.
+    if (this.spectate) {
+      this.scene.target.set(0, 0, 0);
+      this.scene.focusOn(new THREE.Vector3(0, 0, 0), this.galaxyRadius * 1.7);
+    } else {
+      const home = this.planets.find(p => p.owner === PLAYER);
+      this.scene.target.copy(home.position);
+      this.scene.focusOn(home.position, this.galaxyRadius * 1.05);
+    }
 
-    this.ui.toast('Conquer the galaxy.');
+    this.ui.toast(this.spectate ? 'Spectating — AI vs AI' : 'Conquer the galaxy.');
   }
 
   _teardown() {
@@ -92,12 +108,16 @@ export class Game {
     this.pendingTarget = null;
   }
 
-  _generateGalaxy(count, aiCount) {
+  _generateGalaxy(count, homeOwners) {
     const R = 70 + count * 4.5;
     this.galaxyRadius = R;
-    this.scene.setBounds(R * 2.4);
+    this.scene.setBounds(R * 3.0); // allow zooming out a fair bit further
     this.scene.radius = R * 1.4;
-    this.scene.panLimit = R * 1.25; // keep two-finger panning near the galaxy
+    this.scene.panLimit = R * 1.3; // keep two-finger panning near the galaxy
+
+    // Scale per-planet texture detail down for crowded galaxies (keeps the
+    // synchronous generation responsive on mobile).
+    const texSize = count > 28 ? 128 : count > 18 ? 160 : 224;
 
     const positions = [];
     const minDist = 24;
@@ -131,22 +151,25 @@ export class Game {
         owner: NEUTRAL,
         ships: 4 + Math.floor(Math.random() * 14),
         production: radius * 0.5, // owner multipliers applied per-frame
+        texSize,
       });
       this.scene.scene.add(planet.group);
       return planet;
     });
 
-    // Assign homeworlds: player + AI, spread far apart.
-    const homeIdx = this._pickSpreadHomes(1 + aiCount);
+    // Assign homeworlds to each empire, spread far apart.
+    const homeIdx = this._pickSpreadHomes(homeOwners.length);
     homeIdx.forEach((idx, k) => {
-      const owner = k === 0 ? PLAYER : (1 + k); // 1 player, 2,3,4 AI
+      const owner = homeOwners[k];
       const p = this.planets[idx];
       p.setOwner(owner);
-      p.ships = owner === PLAYER ? 40 : 30; // small head start for the player
+      // Small head start for a human player; equal footing otherwise.
+      p.ships = (!this.spectate && owner === PLAYER) ? 40 : 30;
       // Homeworlds are a touch more productive than the radius alone implies.
       p.production = p.radius * 0.7;
-      p.discovered = true;
-      p.visible = true;
+      // Only the human's home starts revealed (spectate reveals everything later).
+      p.discovered = this.spectate || owner === PLAYER;
+      p.visible = p.discovered;
     });
 
     // Fog state defaults.
@@ -359,8 +382,9 @@ export class Game {
 
   // Per-owner production multiplier (economy handicap / player advantage).
   prodMulFor(owner) {
-    if (owner === PLAYER) return this.cfg.playerProd;
     if (owner === NEUTRAL) return 1;
+    if (this.spectate) return this.cfg.aiProd; // all empires equal when spectating
+    if (owner === PLAYER) return this.cfg.playerProd;
     return this.cfg.aiProd;
   }
 
@@ -435,6 +459,17 @@ export class Game {
   }
 
   _updateFog() {
+    // Spectate / no-fog: reveal the entire galaxy.
+    if (!this.fogEnabled) {
+      for (const p of this.planets) {
+        p.visible = true; p.discovered = true;
+        p.ring.material.opacity = 0.9;
+        p.marker.material.opacity = p.hasCapital ? 0.95 : 0;
+      }
+      for (const f of this.fleets) f.points.visible = true;
+      return;
+    }
+
     for (const p of this.planets) {
       if (p.owner === PLAYER) { p.visible = true; p.discovered = true; }
       else p.visible = false;
@@ -471,7 +506,28 @@ export class Game {
     }
   }
 
+  _empireName(owner) {
+    // Owner 1 is "You" with a human; in spectate it's just the cyan empire.
+    if (this.spectate && owner === PLAYER) return 'Azure';
+    return OWNER_NAMES[owner] || `Empire ${owner}`;
+  }
+
   _updateStats() {
+    if (this.spectate) {
+      // Show the leading empire's standing.
+      const tally = new Map();
+      const bump = (o, w, s) => {
+        const e = tally.get(o) || { w: 0, s: 0 };
+        e.w += w; e.s += s; tally.set(o, e);
+      };
+      for (const p of this.planets) if (p.owner !== NEUTRAL) bump(p.owner, 1, p.shipCount);
+      for (const f of this.fleets) bump(f.owner, 0, Math.floor(f.count));
+      let lead = null;
+      for (const [o, e] of tally) if (!lead || e.w > tally.get(lead).w) lead = o;
+      if (lead != null) this.ui.updateStats(tally.get(lead).w, tally.get(lead).s, this.techLevelOf(lead));
+      else this.ui.updateStats(0, 0, 1);
+      return;
+    }
     let worlds = 0, ships = 0;
     for (const p of this.planets) if (p.owner === PLAYER) { worlds++; ships += p.shipCount; }
     for (const f of this.fleets) if (f.owner === PLAYER) ships += Math.floor(f.count);
@@ -479,19 +535,31 @@ export class Game {
   }
 
   _checkEnd() {
-    let playerP = 0, playerF = 0, enemyP = 0, enemyF = 0;
-    for (const p of this.planets) {
-      if (p.owner === PLAYER) playerP++;
-      else if (p.owner !== NEUTRAL) enemyP++;
+    // Owners that still hold a world or a fleet in flight.
+    const alive = new Set();
+    for (const p of this.planets) if (p.owner !== NEUTRAL) alive.add(p.owner);
+    for (const f of this.fleets) alive.add(f.owner);
+
+    if (this.spectate) {
+      if (alive.size <= 1) {
+        this.over = true;
+        const w = [...alive][0];
+        if (w != null) {
+          const name = this._empireName(w);
+          this.ui.showEnd(true, `${name} conquers the galaxy.`, `${name} Wins`);
+        } else {
+          this.ui.showEnd(true, 'The galaxy lies empty.', 'Stalemate');
+        }
+      }
+      return;
     }
-    for (const f of this.fleets) {
-      if (f.owner === PLAYER) playerF++;
-      else enemyF++;
-    }
-    if (playerP === 0 && playerF === 0) {
+
+    const playerAlive = alive.has(PLAYER);
+    const enemiesAlive = [...alive].some(o => o !== PLAYER);
+    if (!playerAlive) {
       this.over = true;
       this.ui.showEnd(false, 'Your empire has fallen. The galaxy belongs to another.');
-    } else if (enemyP === 0 && enemyF === 0) {
+    } else if (!enemiesAlive) {
       this.over = true;
       this.ui.showEnd(true, 'All rival empires crushed. The galaxy is yours.');
     }

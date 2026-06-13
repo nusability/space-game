@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { makePlanetTexture, makeCloudTexture, makeRingTexture, makeMarkerTexture, makeReticleTexture } from './textures.js?v=7';
-import { ownerColor, NEUTRAL } from './constants.js?v=7';
+import { makePlanetTexture, makeCloudTexture, makeRingTexture, makeMarkerTexture, makeReticleTexture } from './textures.js?v=8';
+import { ownerColor, NEUTRAL } from './constants.js?v=8';
 
 // Atmosphere fresnel glow shader (rim-lit halo around the planet).
 function atmosphereMaterial(color) {
@@ -52,6 +52,7 @@ export class Planet {
     this.production = opts.production ?? (this.radius * 0.55); // ships/sec
     this.maxShips = Math.round(this.radius * 90);
     this.hasCapital = false;
+    this.texSize = opts.texSize; // optional override for galaxy-wide detail
 
     this.group = new THREE.Group();
     this.group.position.copy(this.position);
@@ -60,7 +61,7 @@ export class Planet {
   }
 
   _buildMesh() {
-    const texSize = this.radius > 7 ? 256 : 192;
+    const texSize = this.texSize ?? (this.radius > 7 ? 256 : 192);
     const { map, emissiveMap } = makePlanetTexture(this.type, this.seed, texSize);
 
     const geo = new THREE.SphereGeometry(this.radius, 48, 48);

@@ -1,4 +1,4 @@
-import { OWNER_COLORS, OWNER_NAMES, NEUTRAL, PLAYER } from './constants.js?v=7';
+import { OWNER_COLORS, OWNER_NAMES, NEUTRAL, PLAYER } from './constants.js?v=8';
 
 const hex = (id) => '#' + (OWNER_COLORS[id] ?? 0xffffff).toString(16).padStart(6, '0');
 
@@ -46,16 +46,55 @@ export class UI {
     this.buildBtn.addEventListener('click', () => this.onBuildCapital && this.onBuildCapital());
     document.getElementById('planet-close').addEventListener('click', () => this.onClosePlanet && this.onClosePlanet());
 
-    // Overlays
+    // Overlays + setup form
     this.overlay = document.getElementById('overlay');
     this.endscreen = document.getElementById('endscreen');
-    document.querySelectorAll('.diff').forEach(b => {
-      b.addEventListener('click', () => this.onStart && this.onStart(b.dataset.diff));
+
+    this._difficulty = 'normal';
+    this.diffSeg = document.getElementById('diff-seg');
+    this.diffSeg.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        this.diffSeg.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        this._difficulty = b.dataset.diff;
+      });
     });
+
+    this.planetsRange = document.getElementById('planets-range');
+    this.planetsVal = document.getElementById('planets-val');
+    this.aiRange = document.getElementById('ai-range');
+    this.aiVal = document.getElementById('ai-val');
+    this.spectateChk = document.getElementById('spectate-chk');
+
+    this.planetsRange.addEventListener('input', () => {
+      this.planetsVal.textContent = this.planetsRange.value;
+    });
+    this.aiRange.addEventListener('input', () => this._syncAi());
+    this.spectateChk.addEventListener('change', () => this._syncAi());
+
+    document.getElementById('launch').addEventListener('click', () => {
+      this.onStart && this.onStart({
+        difficulty: this._difficulty,
+        planets: +this.planetsRange.value,
+        ai: +this.aiRange.value,
+        spectate: this.spectateChk.checked,
+      });
+    });
+
     document.getElementById('restart').addEventListener('click', () => {
       this.endscreen.classList.add('hidden');
       this.overlay.classList.remove('hidden');
     });
+  }
+
+  // Human mode allows 1-3 AI (4 owner slots); spectate allows 2-4.
+  _syncAi() {
+    const spectate = this.spectateChk.checked;
+    const min = spectate ? 2 : 1, max = spectate ? 4 : 3;
+    let v = +this.aiRange.value;
+    v = Math.max(min, Math.min(max, v));
+    this.aiRange.min = min; this.aiRange.max = max; this.aiRange.value = v;
+    this.aiVal.textContent = v;
   }
 
   // ---- labels ----
@@ -158,9 +197,9 @@ export class UI {
     setTimeout(() => t.remove(), 2700);
   }
 
-  showEnd(win, text) {
+  showEnd(win, text, title) {
     this.hidePanels();
-    document.getElementById('end-title').textContent = win ? 'Victory' : 'Defeat';
+    document.getElementById('end-title').textContent = title || (win ? 'Victory' : 'Defeat');
     document.getElementById('end-text').textContent = text;
     this.endscreen.classList.remove('hidden');
   }

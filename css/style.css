@@ -173,3 +173,56 @@ button { font-family: inherit; cursor: pointer; outline: none; }
 .diff-row .diff { font-size: 14px; padding: 14px 6px; }
 .diff-row .diff[data-diff="normal"] { background: linear-gradient(180deg,#b388ff,#7a4fd0); color:#fff;}
 .diff-row .diff[data-diff="hard"] { background: linear-gradient(180deg,#ff7a72,#d0381f); color:#fff;}
+
+/* Setup form on the start screen */
+.setup { text-align: left; margin: 6px 0 18px; }
+.field { margin-bottom: 14px; }
+.field > label {
+  display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px;
+  opacity: 0.7; margin-bottom: 7px;
+}
+.field .fval {
+  float: right; opacity: 1; color: var(--player); font-weight: 800;
+  letter-spacing: 0; text-transform: none; font-size: 14px;
+}
+
+.segmented { display: flex; gap: 6px; }
+.segmented button {
+  flex: 1; padding: 11px 4px; font-size: 13px; font-weight: 600;
+  background: rgba(255,255,255,0.06); color: #cfe0ff;
+  border: 1px solid var(--stroke); border-radius: 10px;
+}
+.segmented button.active {
+  background: linear-gradient(180deg, #3fd6ff, #1f8fd0);
+  color: #042033; border-color: transparent;
+}
+
+.srange {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 28px; background: transparent;
+}
+.srange::-webkit-slider-runnable-track {
+  height: 8px; border-radius: 999px;
+  background: linear-gradient(90deg, var(--player), #2a6fae);
+}
+.srange::-moz-range-track { height: 8px; border-radius: 999px; background: #2a6fae; }
+.srange::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 28px; height: 28px; margin-top: -10px;
+  border-radius: 50%; background: #fff; border: 3px solid var(--player);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.srange::-moz-range-thumb {
+  width: 26px; height: 26px; border-radius: 50%; background: #fff; border: 3px solid var(--player);
+}
+
+.switch-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--stroke); border-radius: 12px;
+  background: rgba(255,255,255,0.04); font-size: 14px; cursor: pointer;
+}
+.switch-row input { width: 22px; height: 22px; accent-color: #3fd6ff; }
+
+.launch { width: 100%; padding: 16px; font-size: 17px; }
+.how-mini { font-size: 12px; opacity: 0.55; margin-top: 12px; }
+.how-mini b { color: var(--player); }

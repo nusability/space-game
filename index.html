@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#05060f" />
   <title>Stellar Conquest</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=8" />
   <script type="importmap">
   {
     "imports": {
@@ -86,18 +86,36 @@
   <div id="overlay" class="overlay">
     <div class="overlay-card">
       <h1>STELLAR CONQUEST</h1>
-      <p class="tag">Tap a world you own, then tap a target to send ships. Conquer the galaxy.</p>
-      <ul class="how">
-        <li><b>Drag</b> to orbit · <b>Pinch</b> to zoom</li>
-        <li>Worlds grow fleets over time</li>
-        <li>Fleets clash when they cross paths</li>
-        <li>Reach Tech 3 to build Capital Ships &amp; <b>warp</b></li>
-      </ul>
-      <div class="diff-row">
-        <button class="primary diff" data-diff="easy">Skirmish</button>
-        <button class="primary diff" data-diff="normal">Campaign</button>
-        <button class="primary diff" data-diff="hard">Onslaught</button>
+      <p class="tag">Tap a world you own, then a target, to send ships. Conquer the galaxy.</p>
+
+      <div class="setup">
+        <div class="field">
+          <label>Difficulty</label>
+          <div class="segmented" id="diff-seg">
+            <button data-diff="easy">Skirmish</button>
+            <button data-diff="normal" class="active">Campaign</button>
+            <button data-diff="hard">Onslaught</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Planets <span class="fval" id="planets-val">18</span></label>
+          <input id="planets-range" class="srange" type="range" min="6" max="40" value="18" />
+        </div>
+
+        <div class="field">
+          <label>AI empires <span class="fval" id="ai-val">2</span></label>
+          <input id="ai-range" class="srange" type="range" min="1" max="4" value="2" />
+        </div>
+
+        <label class="switch-row">
+          <input id="spectate-chk" type="checkbox" />
+          <span>Spectate — AI vs AI, no fog of war</span>
+        </label>
       </div>
+
+      <button id="launch" class="primary launch">Launch Game</button>
+      <p class="how-mini"><b>Drag</b> orbit · <b>Two fingers</b> pan · <b>Pinch</b> zoom</p>
     </div>
   </div>
 
@@ -109,6 +127,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js?v=7"></script>
+  <script type="module" src="js/main.js?v=8"></script>
 </body>
 </html>
