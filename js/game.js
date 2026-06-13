@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Planet } from './planet.js';
 import { Fleet } from './fleet.js';
-import { AIController } from './ai.js';
+import { AIController } from './ai.js?v=4';
 import { PLANET_TYPES } from './textures.js';
 import {
   NEUTRAL, PLAYER, DIFFICULTY, techLevel,
