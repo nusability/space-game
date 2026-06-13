@@ -1,8 +1,13 @@
-import { NEUTRAL } from './constants.js?v=12';
+import { NEUTRAL } from './constants.js?v=13';
 
 // One controller per AI empire. Difficulty tunes cadence, aggression, mistake
 // rate and the per-WINDOW move cap. When `advanced` is set the empire also
 // uses coordinated multi-world strikes and rear-to-front reserve movements.
+//
+// Target selection favours EXPANSION: safe, weakly-held, uncontested worlds
+// (especially neutrals) score highest, while worlds sitting next to strong
+// enemy forces are penalised so the AI doesn't pour everything into a
+// meat-grinder over one contested world and neglect easy growth.
 const WINDOW = 10; // seconds
 
 export class AIController {
@@ -18,22 +23,20 @@ export class AIController {
     this.clock = 0;        // local game-time accumulator
     this.moveTimes = [];   // timestamps of recent budget-counted decisions
     this.scheduled = [];   // staggered launches: { source, target, amount, at }
+    this.recent = new Map(); // target id -> clock when last committed (anti-spam)
   }
 
   get mine() { return this.game.planets.filter(p => p.owner === this.owner); }
+  get _contestR() { return (this.game.galaxyRadius || 200) * 0.33; }
 
   update(dt) {
     this.clock += dt;
-
-    // Fire any staggered launches that have come due (coordinated strikes).
-    // These belong to an already-counted decision, so they bypass the budget.
     if (this.scheduled.length) this._flushScheduled();
 
     this.timer -= dt;
     if (this.timer > 0) return;
     this.timer = this.interval * (0.7 + Math.random() * 0.6);
 
-    // Rolling-window rate limit.
     this.moveTimes = this.moveTimes.filter(t => this.clock - t < WINDOW);
     if (this.moveTimes.length >= this.maxMoves) return;
 
@@ -51,7 +54,56 @@ export class AIController {
     this.scheduled = remaining;
   }
 
-  // Returns true if a real decision (build / launch / plan) was taken.
+  // ---- scoring ----
+  // Enemy ship strength near a world (force that could quickly retake it).
+  _nearbyEnemyStrength(t) {
+    const R = this._contestR;
+    let s = 0;
+    for (const e of this.game.planets) {
+      if (e === t || e.owner === this.owner || e.owner === NEUTRAL) continue;
+      const d = e.position.distanceTo(t.position);
+      if (d < R) s += e.shipCount * (1 - d / R);
+    }
+    return s;
+  }
+
+  _scoreTarget(t, mine) {
+    const dist = Math.min(...mine.map(p => p.position.distanceTo(t.position)));
+    const expansion = (t.owner === NEUTRAL ? 6 : 3) + (t.hasCapital ? 5 : 0);
+    const contention = this._nearbyEnemyStrength(t);
+    const rt = this.recent.get(t.id);
+    const recentPen = (rt != null && this.clock - rt < 5) ? 5 : 0; // don't spam one world
+    return expansion - t.shipCount * 0.05 - dist * 0.03 - contention * 0.06 - recentPen;
+  }
+
+  _chooseTarget(mine) {
+    let best = null, bestScore = -Infinity;
+    const cands = [];
+    for (const t of this.game.planets) {
+      if (t.owner === this.owner) continue;
+      const s = this._scoreTarget(t, mine);
+      cands.push(t);
+      if (s > bestScore) { bestScore = s; best = t; }
+    }
+    if (!best) return null;
+    // Occasional blunder (keeps lower difficulties beatable).
+    if (cands.length > 1 && Math.random() < this.mistakeChance) {
+      return cands[Math.floor(Math.random() * cands.length)];
+    }
+    return best;
+  }
+
+  _bestSourceFor(target, mine) {
+    let best = null, bestVal = -Infinity;
+    for (const p of mine) {
+      if (p.shipCount < 10) continue;
+      const val = p.shipCount - p.position.distanceTo(target.position) * 0.15;
+      if (val > bestVal) { bestVal = val; best = p; }
+    }
+    return best;
+  }
+
+  // ---- decision ----
   act() {
     const g = this.game;
     const mine = this.mine;
@@ -67,68 +119,45 @@ export class AIController {
       }
     }
 
-    if (this.advanced) {
-      // Prefer a coordinated strike when several worlds can combine on a target
-      // that no single world could take alone; otherwise shore up the frontier.
-      if (this._tryCoordinatedAttack(mine)) return true;
-      if (Math.random() < 0.5 && this._tryReserveMove(mine)) return true;
-    }
-
-    return this._simpleAttack(mine);
-  }
-
-  // ---- baseline single-world attack ----
-  _simpleAttack(mine) {
-    const g = this.game;
-    mine.sort((a, b) => b.ships - a.ships);
-    const source = mine[0];
-    if (source.shipCount < 12) return false;
-
-    const cands = [];
-    let best = null, bestScore = -Infinity;
-    for (const t of g.planets) {
-      if (t.owner === this.owner) continue;
-      const dist = source.position.distanceTo(t.position);
-      const score = (source.shipCount * this.aggression) / (t.shipCount + 1)
-        - dist * 0.05 + (t.owner === NEUTRAL ? 4 : 0) + (t.hasCapital ? 6 : 0);
-      cands.push(t);
-      if (score > bestScore) { bestScore = score; best = t; }
-    }
-    if (!best) return false;
-
-    let target = best;
-    if (cands.length > 1 && Math.random() < this.mistakeChance) {
-      target = cands[Math.floor(Math.random() * cands.length)];
+    const target = this._chooseTarget(mine);
+    if (!target) {
+      return this.advanced ? this._tryReserveMove(mine) : false;
     }
 
     const defenders = target.shipCount;
+    const source = this._bestSourceFor(target, mine);
     const sendFrac = Math.min(0.9, 0.4 + this.aggression * 0.3);
-    const send = Math.floor(source.shipCount * sendFrac);
-    if (send < 8) return false;
-    if (send <= defenders && target.owner !== NEUTRAL && Math.random() > 0.3) return false;
+    const single = source ? Math.floor(source.shipCount * sendFrac) : 0;
 
-    return !!g.launchFleet(source, target, send);
+    // Cheap grab: one world can take it with margin — expand and keep reserves.
+    if (source && single > defenders + 4 && single >= 8) {
+      this.recent.set(target.id, this.clock);
+      return !!g.launchFleet(source, target, single);
+    }
+
+    // Too tough for one world: an advanced empire combines several worlds.
+    if (this.advanced && this._tryCoordinatedAttackOn(target, mine)) {
+      this.recent.set(target.id, this.clock);
+      return true;
+    }
+
+    // Baseline fallback: commit anyway if it's a plausible/neutral grab.
+    if (source && single >= 8 && (target.owner === NEUTRAL || single > defenders)) {
+      this.recent.set(target.id, this.clock);
+      return !!g.launchFleet(source, target, single);
+    }
+
+    // Can't take it right now — shore up the frontier instead.
+    if (this.advanced && Math.random() < 0.5) return this._tryReserveMove(mine);
+    return false;
   }
 
   // ---- coordinated multi-world strike, timed to arrive together ----
-  _tryCoordinatedAttack(mine) {
-    const g = this.game;
+  _tryCoordinatedAttackOn(target, mine) {
     if (mine.length < 2) return false;
+    const g = this.game;
+    const needed = target.shipCount * 1.3 + 6;
 
-    // Choose the most valuable hostile/neutral target near our territory.
-    let target = null, bestScore = -Infinity;
-    for (const t of g.planets) {
-      if (t.owner === this.owner) continue;
-      const nearMine = Math.min(...mine.map(p => p.position.distanceTo(t.position)));
-      const score = (t.hasCapital ? 9 : 0) + (t.owner === NEUTRAL ? 2 : 5)
-        - t.shipCount * 0.04 - nearMine * 0.03;
-      if (score > bestScore) { bestScore = score; target = t; }
-    }
-    if (!target) return false;
-
-    const needed = target.shipCount * 1.35 + 6;
-
-    // Stage from our nearest, strongest worlds (keep a home garrison).
     const stagers = mine
       .filter(p => p.shipCount > 14)
       .sort((a, b) => a.position.distanceTo(target.position) - b.position.distanceTo(target.position))
@@ -145,7 +174,7 @@ export class AIController {
       total += amount;
       if (total >= needed && plan.length >= 2) break;
     }
-    if (plan.length < 2 || total < needed) return false; // not a real combined op
+    if (plan.length < 2 || total < needed) return false;
 
     // Arrive together: the farthest fleet leaves now, nearer ones wait.
     const maxTT = Math.max(...plan.map(p => p.tt));
@@ -163,13 +192,10 @@ export class AIController {
     const enemies = g.planets.filter(p => p.owner !== this.owner && p.owner !== NEUTRAL);
     if (enemies.length === 0) return false;
 
-    // Distance from each of my worlds to the nearest enemy world.
     const threat = (p) => Math.min(...enemies.map(e => p.position.distanceTo(e.position)));
-
-    // Frontier = my world closest to the enemy; rear = a safe world with surplus.
     const sorted = mine.slice().sort((a, b) => threat(a) - threat(b));
     const frontier = sorted[0];
-    // Only reinforce if the frontier looks under-gunned vs nearby enemy mass.
+
     const enemyPressure = enemies
       .filter(e => e.position.distanceTo(frontier.position) < threat(frontier) * 1.6 + 30)
       .reduce((s, e) => s + e.shipCount, 0);

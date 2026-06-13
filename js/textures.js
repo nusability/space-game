@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createNoise3D, fbm } from './noise.js?v=12';
+import { createNoise3D, fbm } from './noise.js?v=13';
 
 // Planet archetypes with colour ramps (height -> rgb). Heights in [0,1].
 export const PLANET_TYPES = ['ocean', 'desert', 'ice', 'lava', 'gas', 'barren'];
