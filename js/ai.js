@@ -1,4 +1,4 @@
-import { NEUTRAL } from './constants.js?v=11';
+import { NEUTRAL } from './constants.js?v=12';
 
 // One controller per AI empire. Difficulty tunes cadence, aggression, mistake
 // rate and the per-WINDOW move cap. When `advanced` is set the empire also

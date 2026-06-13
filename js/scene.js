@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeStarfieldTexture, makeDotTexture } from './textures.js?v=11';
+import { makeStarfieldTexture, makeDotTexture } from './textures.js?v=12';
 
 // Manages renderer, scene, camera rig, lighting, starfield and touch controls.
 export class SceneManager {
@@ -203,6 +203,18 @@ export class SceneManager {
     this.radius = Math.min(this.radius, maxR);
   }
 
+  // Shift the rendered image up by `px` pixels (used so bottom panels don't
+  // hide the action). Uses the camera view offset so picking/labels stay aligned.
+  setViewShift(px) {
+    this._viewShiftTarget = px || 0;
+  }
+
+  _applyViewOffset() {
+    const w = window.innerWidth, h = window.innerHeight;
+    if ((this._viewShiftY || 0) > 0.5) this.camera.setViewOffset(w, h, 0, this._viewShiftY, w, h);
+    else this.camera.clearViewOffset();
+  }
+
   // Returns the first intersected object from a list, given screen coords.
   pick(clientX, clientY, objects) {
     const ndc = new THREE.Vector2(
@@ -235,6 +247,16 @@ export class SceneManager {
       this._updateCamera();
     }
     if (this.starfield) this.starfield.rotation.y += dt * 0.004;
+
+    // Smoothly glide the view offset toward its target.
+    const cur = this._viewShiftY || 0, tgt = this._viewShiftTarget || 0;
+    if (Math.abs(cur - tgt) > 0.5) {
+      this._viewShiftY = cur + (tgt - cur) * Math.min(1, dt * 9);
+      this._applyViewOffset();
+    } else if (cur !== tgt) {
+      this._viewShiftY = tgt;
+      this._applyViewOffset();
+    }
   }
 
   render() {
@@ -246,5 +268,6 @@ export class SceneManager {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this._applyViewOffset(); // re-apply against new dimensions
   }
 }

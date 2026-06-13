@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { makePlanetTexture, makeCloudTexture, makeRingTexture, makeMarkerTexture, makeReticleTexture } from './textures.js?v=11';
-import { ownerColor, NEUTRAL } from './constants.js?v=11';
+import { makePlanetTexture, makeCloudTexture, makeRingTexture, makeMarkerTexture, makeReticleTexture } from './textures.js?v=12';
+import { ownerColor, NEUTRAL } from './constants.js?v=12';
 
 // Atmosphere fresnel glow shader (rim-lit halo around the planet).
 function atmosphereMaterial(color) {

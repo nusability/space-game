@@ -1,4 +1,4 @@
-import { OWNER_COLORS, OWNER_NAMES, NEUTRAL, PLAYER } from './constants.js?v=11';
+import { OWNER_COLORS, OWNER_NAMES, NEUTRAL, PLAYER } from './constants.js?v=12';
 
 const hex = (id) => '#' + (OWNER_COLORS[id] ?? 0xffffff).toString(16).padStart(6, '0');
 
@@ -192,6 +192,7 @@ export class UI {
       this.buildBtn.textContent = `Capital Ship — reach Tech 3`;
       this.buildBtn.disabled = true;
     }
+    this._emitViewShift();
   }
 
   showSendPanel(sourceShips) {
@@ -200,11 +201,22 @@ export class UI {
     this._sourceMax = Math.max(1, sourceShips);
     this.sendSlider.value = 50;
     this._refreshSendCount();
+    this._emitViewShift();
   }
 
   hidePanels() {
     this.sendPanel.classList.add('hidden');
     this.planetPanel.classList.add('hidden');
+    this._emitViewShift();
+  }
+
+  // Tell the camera how far to lift the view so the open bottom panel doesn't
+  // cover the action (≈60% of the visible panel's height).
+  _emitViewShift() {
+    const panel = !this.sendPanel.classList.contains('hidden') ? this.sendPanel
+      : !this.planetPanel.classList.contains('hidden') ? this.planetPanel : null;
+    const px = panel ? panel.getBoundingClientRect().height * 0.6 + 12 : 0;
+    this.onViewShift && this.onViewShift(px);
   }
 
   _sendAmount() {

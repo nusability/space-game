@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { Planet } from './planet.js?v=11';
-import { Fleet, BASE_SPEED } from './fleet.js?v=11';
-import { AIController } from './ai.js?v=11';
-import { PLANET_TYPES } from './textures.js?v=11';
+import { Planet } from './planet.js?v=12';
+import { Fleet, BASE_SPEED } from './fleet.js?v=12';
+import { AIController } from './ai.js?v=12';
+import { PLANET_TYPES } from './textures.js?v=12';
 import {
   NEUTRAL, PLAYER, DIFFICULTY, techLevel, ownerColor, OWNER_NAMES,
   CAPITAL_TECH_LEVEL, CAPITAL_COST, WARP_MULTIPLIER,
-} from './constants.js?v=11';
+} from './constants.js?v=12';
 
 const INTERCEPT_DIST = 6.5;
 
@@ -51,6 +51,7 @@ export class Game {
     ui.onCancel = () => this.cancelSend();
     ui.onBuildCapital = () => this.buildCapitalSelected();
     ui.onClosePlanet = () => this.deselect();
+    ui.onViewShift = (px) => this.scene.setViewShift(px);
     ui.onPause = () => { this.paused = true; };
     ui.onResume = () => { this.paused = false; };
     ui.onRestart = () => { this.paused = true; this.deselect(); }; // setup overlay shown by UI
