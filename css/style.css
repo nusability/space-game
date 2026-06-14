@@ -186,11 +186,14 @@ button { font-family: inherit; cursor: pointer; outline: none; }
   letter-spacing: 0; text-transform: none; font-size: 14px;
 }
 
-.segmented { display: flex; gap: 6px; }
+.segmented { display: flex; flex-wrap: wrap; gap: 6px; }
 .segmented button {
-  flex: 1; padding: 11px 4px; font-size: 13px; font-weight: 600;
+  flex: 1 1 40%; padding: 11px 4px; font-size: 13px; font-weight: 600;
   background: rgba(255,255,255,0.06); color: #cfe0ff;
   border: 1px solid var(--stroke); border-radius: 10px;
+}
+.segmented button[data-diff="unrestricted"].active {
+  background: linear-gradient(180deg, #ff7a72, #d0381f); color: #fff;
 }
 .segmented button.active {
   background: linear-gradient(180deg, #3fd6ff, #1f8fd0);

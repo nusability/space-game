@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { Planet } from './planet.js?v=13';
-import { Fleet, BASE_SPEED } from './fleet.js?v=13';
-import { AIController } from './ai.js?v=13';
-import { PLANET_TYPES } from './textures.js?v=13';
+import { Planet } from './planet.js?v=14';
+import { Fleet, BASE_SPEED } from './fleet.js?v=14';
+import { AIController } from './ai.js?v=14';
+import { PLANET_TYPES } from './textures.js?v=14';
 import {
   NEUTRAL, PLAYER, DIFFICULTY, techLevel, ownerColor, OWNER_NAMES,
   CAPITAL_TECH_LEVEL, CAPITAL_COST, WARP_MULTIPLIER,
-} from './constants.js?v=13';
+} from './constants.js?v=14';
 
 const INTERCEPT_DIST = 6.5;
 
@@ -72,7 +72,9 @@ export class Game {
     this.fogEnabled = !this.spectate;
     this.paused = false;
     // Advanced tactics are always on when spectating; optional for humans.
-    const advanced = this.spectate ? true : !!opts.advanced;
+    // The Unrestricted difficulty forces advanced + no-limits AI.
+    const unrestricted = !!cfg.unrestricted;
+    const advanced = unrestricted || this.spectate || !!opts.advanced;
     this.ui.showPauseButton(true);
 
     const aiCount = clamp(Math.round(opts.ai ?? cfg.ai), this.spectate ? 2 : 1, this.spectate ? 4 : 3);
@@ -89,7 +91,7 @@ export class Game {
 
     // AI controllers for every non-human empire.
     const aiOwners = this.spectate ? homeOwners : homeOwners.filter(o => o !== PLAYER);
-    this.ais = aiOwners.map(o => new AIController(this, o, cfg, advanced));
+    this.ais = aiOwners.map(o => new AIController(this, o, cfg, advanced, unrestricted));
 
     this.ui.initLabels(this.planets);
 

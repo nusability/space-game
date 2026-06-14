@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { makeDotTexture } from './textures.js?v=13';
-import { ownerColor } from './constants.js?v=13';
+import { makeDotTexture } from './textures.js?v=14';
+import { ownerColor } from './constants.js?v=14';
 
 const BASE_SPEED = 16; // world units / sec
 const MAX_DOTS = 28;

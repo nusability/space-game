@@ -44,4 +44,6 @@ export const DIFFICULTY = {
   easy:   { ai: 1, interval: 4.0, aggression: 0.45, maxMoves: 2, mistakeChance: 0.45, aiProd: 0.8,  playerProd: 1.35 },
   normal: { ai: 2, interval: 3.0, aggression: 0.70, maxMoves: 3, mistakeChance: 0.22, aiProd: 1.0,  playerProd: 1.15 },
   hard:   { ai: 3, interval: 2.2, aggression: 1.00, maxMoves: 3, mistakeChance: 0.06, aiProd: 1.05, playerProd: 1.0  },
+  // Unrestricted warfare: no cadence, no move cap, no mistakes, surgical fleets.
+  unrestricted: { ai: 3, interval: 0.25, aggression: 1.2, maxMoves: 9999, mistakeChance: 0, aiProd: 1.1, playerProd: 1.0, advanced: true, unrestricted: true },
 };
